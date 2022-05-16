@@ -433,10 +433,10 @@ if __name__ == '__main__':
     train_y = [el[-1] for el in train_set]
     test_x = [el[:-1] for el in test_set]
     test_y = [el[-1] for el in test_set]
-    classifier.fit(train_x,train_y)
-    train_score = classifier.score(train_x,train_y)
-    test_score = classifier.score(test_x,test_y)
+    classifier.fit(train_x, train_y)
+    train_score = classifier.score(train_x, train_y)
+    test_score = classifier.score(test_x, test_y)
 
-    print(f"{'Se' if train_score >test_score*1.15 else 'Ne se'} sluchuva overfitting")
+    print(f"{'Se' if train_score > test_score * 1.15 else 'Ne se'} sluchuva overfitting")
     print(f"Tochnost so trenirachko mnozhestvo: {train_score}")
     print(f"Tochnost so validacisko mnozhestvo: {test_score}")
