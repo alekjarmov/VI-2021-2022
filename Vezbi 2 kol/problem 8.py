@@ -1,8 +1,9 @@
-from sklearn.neural_network import MLPClassifier
 import warnings
-from sklearn.exceptions import ConvergenceWarning
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import *
+warnings.filterwarnings("ignore")
 
-dataset = [
+data = [
     [0.0307, 0.0523, 0.0653, 0.0521, 0.0611, 0.0577, 0.0665, 0.0664, 0.146, 0.2792, 0.3877, 0.4992, 0.4981, 0.4972,
      0.5607, 1],
     [0.0261, 0.0266, 0.0223, 0.0749, 0.1364, 0.1513, 0.1316, 0.1654, 0.1864, 0.2013, 0.289, 0.365, 0.351, 0.3495,
@@ -408,33 +409,18 @@ dataset = [
     [0.0388, 0.0324, 0.0688, 0.0898, 0.1267, 0.1515, 0.2134, 0.2613, 0.2832, 0.2718, 0.3645, 0.3934, 0.3843, 0.4677,
      0.5364, 1]]
 
+x_num = int(input())
 
-def getsore(classifier, split_index):
-    test_set, train_set = dataset[0:split_index], dataset[split_index:]
-    train_x, train_y = [x[:-1] for x in train_set], [x[-1] for x in train_set]
-    test_x, test_y = [x[:-1] for x in test_set], [x[-1] for x in test_set]
-    classifier.fit(train_x, train_y)
-    score = 0
-    for i in range(len(test_x)):
-        if classifier.predict([test_x[i]])[0] == test_y[i]:
-            score += 1
-    score = score / len(test_x)
-    return score
+classifier = MLPClassifier(3, activation='relu', learning_rate_init=0.003, max_iter=200, random_state=0)
+n = len(data) - x_num
+train_set = data[:n]
+test_set = data[n:]
+train_x = [x[:-1] for x in train_set]
+train_y = [x[-1] for x in train_set]
+test_x = [x[:-1] for x in test_set]
+test_y = [x[-1] for x in test_set]
+classifier.fit(train_x, train_y)
+print(f'Precision: {precision_score(test_y, classifier.predict(test_x))}')
+print(f'Recall: {recall_score(test_y, classifier.predict(test_x))}')
 
 
-if __name__ == "__main__":
-    warnings.filterwarnings('ignore', category=ConvergenceWarning)
-
-    x_1 = int(input())
-    x_2 = int(input())
-
-    classifier = MLPClassifier(3, activation='relu', learning_rate_init=0.003, max_iter=200, random_state=0)
-    score1 = getsore(classifier, x_1)
-    print(f"Tochnost model1: {score1}")
-    classifier2 = MLPClassifier(3, activation='relu', learning_rate_init=0.003, max_iter=200, random_state=0)
-    score2 = getsore(classifier, x_2)
-    print(f"Tochnost model2: {score2}")
-    if score1 == score2:
-        print('Dvata modeli imaat ednakva tochnost')
-    else:
-        print(f"{'Prviot' if score1 > score2 else 'Vtoriot'} model ima pogolema tochnost")

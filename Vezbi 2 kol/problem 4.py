@@ -1,6 +1,5 @@
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import *
-dataset = [[180.0, 23.6, 25.2, 27.9, 25.4, 14.0, 'Roach'],
+data = [[180.0, 23.6, 25.2, 27.9, 25.4, 14.0, 'Roach'],
            [12.2, 11.5, 12.2, 13.4, 15.6, 10.4, 'Smelt'],
            [135.0, 20.0, 22.0, 23.5, 25.0, 15.0, 'Perch'],
            [1600.0, 56.0, 60.0, 64.0, 15.0, 9.6, 'Pike'],
@@ -159,28 +158,19 @@ dataset = [[180.0, 23.6, 25.2, 27.9, 25.4, 14.0, 'Roach'],
            [600.0, 29.4, 32.0, 37.2, 41.5, 15.0, 'Bream'],
            [145.0, 22.0, 24.0, 25.5, 25.0, 15.0, 'Perch'],
            [1100.0, 40.1, 43.0, 45.5, 27.5, 16.3, 'Perch']]
+def remove_column(arr, col):
+    return [row[:col] + row[col+1:] for row in arr]
 
-
-def remove_column(data, column):
-    return [row[0:column] + row[column + 1:] for row in data]
-
-
-col_to_remove = int(input())
-num_of_treesx = int(input())
-dataset = remove_column(dataset, col_to_remove )
-classifier = RandomForestClassifier(random_state=0, criterion=input(), n_estimators=num_of_treesx)
-test_sample = list(map(float, input().split(" ")))
-
-x_set = [row[:-1] for row in dataset]
-y_set = [row[-1] for row in dataset]
-n = len(dataset)
-train_x = x_set[:int(n * 0.85)]
-train_y = y_set[:int(n * 0.85)]
-
-test_x = x_set[int(n * 0.85):]
-test_y = y_set[int(n * 0.85):]
-classifier.fit(train_x, train_y)
-
-print(f"Accuracy: {classifier.score(test_x, test_y)}")
-print(classifier.predict(remove_column([test_sample], col_to_remove))[0])
-print(classifier.predict_proba(remove_column([test_sample], col_to_remove))[0])
+if __name__ == '__main__':
+    remove_ind = int(input())
+    data = remove_column(data, remove_ind)
+    n = 0.85
+    train_set = data[:int(len(data) * n)]
+    test_set = data[int(len(data)*n):]
+    classifier = RandomForestClassifier(n_estimators=int(input()), random_state=0, criterion=input())
+    classifier.fit([row[:-1] for row in train_set], [row[-1] for row in train_set])
+    print(f'Accuracy: {classifier.score([row[:-1] for row in test_set], [row[-1] for row in test_set])}')
+    entry = [[float(x) for x in input().split()]]
+    entry = remove_column(entry, remove_ind)
+    print(classifier.predict(entry)[0])
+    print(classifier.predict_proba(entry)[0])
