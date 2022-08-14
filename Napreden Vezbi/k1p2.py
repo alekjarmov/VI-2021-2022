@@ -464,70 +464,51 @@ def uniform_cost_search(problem):
     return graph_search(problem, PriorityQueue(min, lambda a: a.path_cost))
 
 
-class Pacman(Problem):
-    def __init__(self, initial, goal=None):
+class Niza(Problem):
+
+    def __init__(self, initial, l, goal=None):
         super().__init__(initial, goal)
-        self.m, self.n = 10, 10
-        self.walls = \
-            [(0, 6), (0, 8), (0, 9),
-             (1, 2), (1, 3), (1, 4), (1, 9),
-             (2, 9),
-             (3, 6), (3, 9),
-             (4, 1), (4, 5), (4, 6), (4, 7),
-             (5, 1), (5, 6),
-             (6, 0), (6, 1), (6, 2), (6, 9),
-             (8, 1), (8, 4), (8, 7), (8, 8),
-             (9, 4), (9, 7), (9, 8)]
-        self.changes = {'sever': (0, 1), 'jug': (0, -1), 'zapad': (-1, 0), 'istok': (1, 0)}
-        self.moves = ('ProdolzhiPravo', 'ProdolzhiNazad', 'SvrtiLevo', 'SvrtiDesno')
-        self.directions = ('istok', 'jug', 'zapad', 'sever')
-
-    def next_direction(self, direction, move):
-        i = self.directions.index(direction)
-        if move == 'ProdolzhiPravo':
-            return direction
-        elif move == 'ProdolzhiNazad':
-            return self.directions[(i + 2) % 4]
-        if move == 'SvrtiLevo':
-            return self.directions[i - 1]
-        if move == 'SvrtiDesno':
-            return self.directions[(i + 1) % 4]
-
-    def next_state(self, state, move):
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
-        next_direction = self.next_direction(direction, move)
-        next_x, next_y = x + self.changes[next_direction][0], y + self.changes[next_direction][1]
-        pills = list(pills)
-        if (next_x, next_y) in pills:
-            pills.remove((next_x, next_y))
-        return (next_x, next_y), next_direction, tuple(pills)
+        self.moves = ['D1', 'D2', 'L1', 'L2']
+        self.l = l
+        self.n = len(initial)
+        self.empty = len(initial) - l
+        self.change = {'D1': 1, 'D2': 2, 'L1': -1, 'L2': -2}
 
     def successor(self, state):
         successors = dict()
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
-        for move in self.moves:
-            next_state = self.next_state(state, move)
-            if self.is_valid(next_state):
-                successors[move] = next_state
-
+        for disk in state:
+            if disk == 0:
+                continue
+            for move in self.moves:
+                if self.is_valid(state, disk, move):
+                    next_state = self.generate_next(state, disk, move)
+                    successors[f"{move}: Disk {disk}"] = next_state
         return successors
 
-    def is_valid(self, state):
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
-        if not (0 <= min(x, y) and x < self.m and y < self.n):
-            return False
-        if (x, y) in self.walls:
-            return False
-        return True
+    def generate_next(self, state, disk, move):
+        new_state = list(state)
+        i = state.index(disk)
+        change = self.change[move]
+        new_state[i] = 0
+        new_state[i + change] = disk
+        return tuple(new_state)
 
-    def goal_test(self, state):
-        return len(state[-1]) == 0
+    def is_valid(self, state, disk, move):
+        new_state = list(state)
+        i = state.index(disk)
+        change = self.change[move]
+        if not 0 <= i + self.change[move] < self.n:
+            return False
+        new_state[i] = 0
+        new_state[i + change] = disk
+        if new_state.count(0) != self.empty:
+            return False
+        if change == 2 and state[i + 1] == 0:
+            return False
+        if change == -2 and state[i - 1] == 0:
+            return False
+
+        return True
 
     def actions(self, state):
         return self.successor(state).keys()
@@ -535,13 +516,16 @@ class Pacman(Problem):
     def result(self, state, action):
         return self.successor(state)[action]
 
+    def value(self):
+        pass
+
 
 if __name__ == "__main__":
-    x, y = map(int, (input(), input()))
-    pocetna = input()
-    pills = []
-    for i in range(int(input())):
-        pills.append(tuple(map(int, input().split(','))))
-    initial = ((x, y), pocetna, tuple(pills))
-    problem = Pacman(initial)
+    l = int(input())
+    n = int(input())
+    state = [0] * n
+    for i in range(l):
+        state[i] = i + 1
+    goal = reversed(state)
+    problem = Niza(tuple(state), l, tuple(goal))
     print(breadth_first_graph_search(problem).solution())

@@ -312,162 +312,146 @@ class PriorityQueue(Queue):
                 self.data.pop(i)
 
 
-import sys
+from sys import maxsize as infinity
 
 """
-Неинформирано пребарување во рамки на дрво.
-Во рамки на дрвото не разрешуваме јамки.
+Информирано пребарување во рамки на граф
 """
 
 
-def tree_search(problem, fringe):
-    """ Пребарувај низ следбениците на даден проблем за да најдеш цел.
+def memoize(fn, slot=None):
+    """ Запамети ја пресметаната вредност за која била листа од
+    аргументи. Ако е специфициран slot, зачувај го резултатот во
+    тој slot на првиот аргумент. Ако slot е None, зачувај ги
+    резултатите во речник.
+    :param fn: зададена функција
+    :type fn: function
+    :param slot: име на атрибут во кој се чуваат резултатите од функцијата
+    :type slot: str
+    :return: функција со модификација за зачувување на резултатите
+    :rtype: function
+    """
+    if slot:
+        def memoized_fn(obj, *args):
+            if hasattr(obj, slot):
+                return getattr(obj, slot)
+            else:
+                val = fn(obj, *args)
+                setattr(obj, slot, val)
+                return val
+    else:
+        def memoized_fn(*args):
+            if args not in memoized_fn.cache:
+                memoized_fn.cache[args] = fn(*args)
+            return memoized_fn.cache[args]
+
+        memoized_fn.cache = {}
+    return memoized_fn
+
+
+def best_first_graph_search(problem, f):
+    """Пребарувај низ следбениците на даден проблем за да најдеш цел. Користи
+     функција за евалуација за да се одлучи кој е сосед најмногу ветува и
+     потоа да се истражи. Ако до дадена состојба стигнат два пата, употреби
+     го најдобриот пат.
     :param problem: даден проблем
     :type problem: Problem
-    :param fringe:  празна редица (queue)
-    :type fringe: FIFOQueue or Stack or PriorityQueue
+    :param f: дадена функција за евалуација (проценка)
+    :type f: function
     :return: Node or None
     :rtype: Node
     """
-    fringe.append(Node(problem.initial))
-    while fringe:
-        node = fringe.pop()
-        print(node.state)
+    f = memoize(f, 'f')
+    node = Node(problem.initial)
+    if problem.goal_test(node.state):
+        return node
+    frontier = PriorityQueue(min, f)
+    frontier.append(node)
+    explored = set()
+    while frontier:
+        node = frontier.pop()
         if problem.goal_test(node.state):
             return node
-        fringe.extend(node.expand(problem))
+        explored.add(node.state)
+        for child in node.expand(problem):
+            if child.state not in explored and child not in frontier:
+                frontier.append(child)
+            elif child in frontier:
+                incumbent = frontier[child]
+                if f(child) < f(incumbent):
+                    del frontier[incumbent]
+                    frontier.append(child)
     return None
 
 
-def breadth_first_tree_search(problem):
-    """Експандирај го прво најплиткиот јазол во пребарувачкото дрво.
+def greedy_best_first_graph_search(problem, h=None):
+    """ Greedy best-first пребарување се остварува ако се специфицира дека f(n) = h(n).
     :param problem: даден проблем
     :type problem: Problem
+    :param h: дадена функција за хевристика
+    :type h: function
     :return: Node or None
-    :rtype: Node
     """
-    return tree_search(problem, FIFOQueue())
+    h = memoize(h or problem.h, 'h')
+    return best_first_graph_search(problem, h)
 
 
-def depth_first_tree_search(problem):
-    """Експандирај го прво најдлабокиот јазол во пребарувачкото дрво.
+def astar_search(problem, h=None):
+    """ A* пребарување е best-first graph пребарување каде f(n) = g(n) + h(n).
     :param problem: даден проблем
     :type problem: Problem
+    :param h: дадена функција за хевристика
+    :type h: function
     :return: Node or None
-    :rtype: Node
     """
-    return tree_search(problem, Stack())
+    h = memoize(h or problem.h, 'h')
+    return best_first_graph_search(problem, lambda n: n.path_cost + h(n))
 
 
-"""
-Неинформирано пребарување во рамки на граф
-Основната разлика е во тоа што овде не дозволуваме јамки, 
-т.е. повторување на состојби
-"""
-
-
-def graph_search(problem, fringe):
-    """Пребарувај низ следбениците на даден проблем за да најдеш цел.
-     Ако до дадена состојба стигнат два пата, употреби го најдобриот пат.
+def recursive_best_first_search(problem, h=None):
+    """Recursive best first search - ја ограничува рекурзијата
+    преку следење на f-вредноста на најдобриот алтернативен пат
+    од било кој јазел предок (еден чекор гледање нанапред).
     :param problem: даден проблем
     :type problem: Problem
-    :param fringe:  празна редица (queue)
-    :type fringe: FIFOQueue or Stack or PriorityQueue
+    :param h: дадена функција за хевристика
+    :type h: function
     :return: Node or None
-    :rtype: Node
     """
-    closed = set()
-    fringe.append(Node(problem.initial))
-    while fringe:
-        node = fringe.pop()
+    h = memoize(h or problem.h, 'h')
+
+    def RBFS(problem, node, flimit):
         if problem.goal_test(node.state):
-            return node
-        if node.state not in closed:
-            closed.add(node.state)
-            fringe.extend(node.expand(problem))
-    return None
+            return node, 0  # (втората вредност е неважна)
+        successors = node.expand(problem)
+        if len(successors) == 0:
+            return None, infinity
+        for s in successors:
+            s.f = max(s.path_cost + h(s), node.f)
+        while True:
+            # Подреди ги според најниската f вредност
+            successors.sort(key=lambda x: x.f)
+            best = successors[0]
+            if best.f > flimit:
+                return None, best.f
+            if len(successors) > 1:
+                alternative = successors[1].f
+            else:
+                alternative = infinity
+            result, best.f = RBFS(problem, best, min(flimit, alternative))
+            if result is not None:
+                return result, best.f
 
-
-def breadth_first_graph_search(problem):
-    """Експандирај го прво најплиткиот јазол во пребарувачкиот граф.
-    :param problem: даден проблем
-    :type problem: Problem
-    :return: Node or None
-    :rtype: Node
-    """
-    return graph_search(problem, FIFOQueue())
-
-
-def depth_first_graph_search(problem):
-    """Експандирај го прво најдлабокиот јазол во пребарувачкиот граф.
-    :param problem: даден проблем
-    :type problem: Problem
-    :return: Node or None
-    :rtype: Node
-    """
-    return graph_search(problem, Stack())
-
-
-def depth_limited_search(problem, limit=50):
-    """Експандирај го прво најдлабокиот јазол во пребарувачкиот граф
-    со ограничена длабочина.
-    :param problem: даден проблем
-    :type problem: Problem
-    :param limit: лимит за длабочината
-    :type limit: int
-    :return: Node or None
-    :rtype: Node
-    """
-
-    def recursive_dls(node, problem, limit):
-        """Помошна функција за depth limited"""
-        cutoff_occurred = False
-        if problem.goal_test(node.state):
-            return node
-        elif node.depth == limit:
-            return 'cutoff'
-        else:
-            for successor in node.expand(problem):
-                result = recursive_dls(successor, problem, limit)
-                if result == 'cutoff':
-                    cutoff_occurred = True
-                elif result is not None:
-                    return result
-        if cutoff_occurred:
-            return 'cutoff'
-        return None
-
-    return recursive_dls(Node(problem.initial), problem, limit)
-
-
-def iterative_deepening_search(problem):
-    """Експандирај го прво најдлабокиот јазол во пребарувачкиот граф
-    со ограничена длабочина, со итеративно зголемување на длабочината.
-    :param problem: даден проблем
-    :type problem: Problem
-    :return: Node or None
-    :rtype: Node
-    """
-    for depth in range(sys.maxsize):
-        result = depth_limited_search(problem, depth)
-        if result is not 'cutoff':
-            return result
-
-
-def uniform_cost_search(problem):
-    """Експандирај го прво јазолот со најниска цена во пребарувачкиот граф.
-    :param problem: даден проблем
-    :type problem: Problem
-    :return: Node or None
-    :rtype: Node
-    """
-    return graph_search(problem, PriorityQueue(min, lambda a: a.path_cost))
+    node = Node(problem.initial)
+    node.f = h(node)
+    result, bestf = RBFS(problem, node, infinity)
+    return result
 
 
 class Pacman(Problem):
+
     def __init__(self, initial, goal=None):
         super().__init__(initial, goal)
-        self.m, self.n = 10, 10
         self.walls = \
             [(0, 6), (0, 8), (0, 9),
              (1, 2), (1, 3), (1, 4), (1, 9),
@@ -478,56 +462,44 @@ class Pacman(Problem):
              (6, 0), (6, 1), (6, 2), (6, 9),
              (8, 1), (8, 4), (8, 7), (8, 8),
              (9, 4), (9, 7), (9, 8)]
-        self.changes = {'sever': (0, 1), 'jug': (0, -1), 'zapad': (-1, 0), 'istok': (1, 0)}
+        self.changes = {'istok': (1, 0), 'jug': (0, -1), 'zapad': (-1, 0), 'sever': (0, 1)}
         self.moves = ('ProdolzhiPravo', 'ProdolzhiNazad', 'SvrtiLevo', 'SvrtiDesno')
         self.directions = ('istok', 'jug', 'zapad', 'sever')
+
+    def is_valid(self, state):
+        x, y = state[0]
+        if min(x, y) < 0 or max(x, y) >= 10:
+            return False
+        if (x, y) in self.walls:
+            return False
+        return True
 
     def next_direction(self, direction, move):
         i = self.directions.index(direction)
         if move == 'ProdolzhiPravo':
             return direction
-        elif move == 'ProdolzhiNazad':
+        if move == 'ProdolzhiNazad':
             return self.directions[(i + 2) % 4]
         if move == 'SvrtiLevo':
             return self.directions[i - 1]
         if move == 'SvrtiDesno':
             return self.directions[(i + 1) % 4]
 
-    def next_state(self, state, move):
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
-        next_direction = self.next_direction(direction, move)
-        next_x, next_y = x + self.changes[next_direction][0], y + self.changes[next_direction][1]
-        pills = list(pills)
+    def generate_next(self, state, move):
+        next_direction = self.next_direction(state[1], move)
+        next_x, next_y = state[0][0] + self.changes[next_direction][0], state[0][1] + self.changes[next_direction][1]
+        pills = list(state[-1])
         if (next_x, next_y) in pills:
             pills.remove((next_x, next_y))
         return (next_x, next_y), next_direction, tuple(pills)
 
     def successor(self, state):
-        successors = dict()
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
+        successors = {}
         for move in self.moves:
-            next_state = self.next_state(state, move)
+            next_state = self.generate_next(state, move)
             if self.is_valid(next_state):
                 successors[move] = next_state
-
         return successors
-
-    def is_valid(self, state):
-        x, y = state[0]
-        direction = state[1]
-        pills = state[2]
-        if not (0 <= min(x, y) and x < self.m and y < self.n):
-            return False
-        if (x, y) in self.walls:
-            return False
-        return True
-
-    def goal_test(self, state):
-        return len(state[-1]) == 0
 
     def actions(self, state):
         return self.successor(state).keys()
@@ -535,13 +507,28 @@ class Pacman(Problem):
     def result(self, state, action):
         return self.successor(state)[action]
 
+    def menh(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def h(self, node):
+        state = node.state
+        x, y = state[0]
+        pills = state[-1]
+        if len(pills) == 0:
+            return 0
+        return max(self.menh(state[0], pill) for pill in pills)
+
+    def goal_test(self, state):
+        return len(state[-1]) == 0
+
 
 if __name__ == "__main__":
-    x, y = map(int, (input(), input()))
-    pocetna = input()
+    x = int(input())
+    y = int(input())
+    direction = input()
     pills = []
     for i in range(int(input())):
         pills.append(tuple(map(int, input().split(','))))
-    initial = ((x, y), pocetna, tuple(pills))
-    problem = Pacman(initial)
-    print(breadth_first_graph_search(problem).solution())
+    pills = tuple(pills)
+    problem = Pacman(((x, y), direction, pills))
+    print(astar_search(problem).solution())
