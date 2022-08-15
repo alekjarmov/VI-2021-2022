@@ -7,7 +7,7 @@ def diff(a, b):
 
 
 if __name__ == '__main__':
-    problem = Problem(globals()[input()]())
+    problem = Problem(eval(input()+"()"))
     variables = range(81)
     domain = range(1, 10)
     problem.addVariables(variables, domain)
@@ -24,6 +24,6 @@ if __name__ == '__main__':
             for red in range(3):
                 for kolona in range(3):
                     diffs.append(trired * 27 + red * 9 + 3*kvadrat + kolona)
-            print(diffs)
+            # print(diffs)
             problem.addConstraint(AllDifferentConstraint(), diffs)
     print(problem.getSolution())
