@@ -1390,7 +1390,7 @@ if __name__ == '__main__':
     encoder.fit([x[:-1] for x in dataset])
 
     train_set = dataset[:int(n * len(dataset) + 0.5)]
-    test_set = dataset[int(n * len(dataset) +0.5 ):]
+    test_set = dataset[int(n * len(dataset) + 0.5):]
 
     test_x = [x[:-1] for x in test_set]
     test_y = [x[-1] for x in test_set]
